@@ -39,7 +39,7 @@ from typing import Dict, Optional
 
 ACLED_STATIC_2025 = {
     # Format: ISO2 → conflict_risk_score (0-100, higher = more conflict)
-    "UA": 92,  # Ukraine — active war, highest conflict index
+    "UA": 95,  # Ukraine — active war, highest conflict index (ACLED 2026 Watchlist: top crisis)
     "RU": 72,  # Russia — active conflict actor, domestic unrest
     "NG": 78,  # Nigeria — Boko Haram, armed group activity
     "PK": 68,  # Pakistan — TTP insurgency, political violence
@@ -56,7 +56,7 @@ ACLED_STATIC_2025 = {
     "SA": 25,  # Saudi Arabia — stable under Vision 2030
     "AE": 10,  # UAE — very stable
     "IL": 68,  # Israel — active regional conflict 2024-2025
-    "TW": 38,  # Taiwan — no domestic conflict but regional tension proxy
+    "TW": 62,  # Taiwan — ACLED 2026 Watchlist flagged as top crisis area; PLA exercises, strait crossings
     "CN": 22,  # China — internal stability enforced
     "KR": 15,  # South Korea — stable, border tension low
     "JP": 5,   # Japan — minimal conflict events
