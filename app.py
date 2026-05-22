@@ -524,18 +524,21 @@ div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
 """, unsafe_allow_html=True)
 
 # ─── Session state ────────────────────────────────────────────────────────────
+# Initialize ALL keys unconditionally with setdefault to prevent
+# KeyError on Python 3.14 / Streamlit 1.57 re-renders
+_DEFAULT_APPETITE = {
+    "geopolitical": 35,
+    "supplier_health": 45,
+    "logistics": 40,
+    "single_source": 50,
+    "regulatory": 40
+}
 if "register" not in st.session_state:
-    st.session_state.register = []
+    st.session_state["register"] = []
 if "last_run" not in st.session_state:
-    st.session_state.last_run = None
+    st.session_state["last_run"] = None
 if "appetite" not in st.session_state:
-    st.session_state.appetite = {
-        "geopolitical": 35,
-        "supplier_health": 45,
-        "logistics": 40,
-        "single_source": 50,
-        "regulatory": 40
-    }
+    st.session_state["appetite"] = _DEFAULT_APPETITE.copy()
 
 # ─── Groq key from secrets ────────────────────────────────────────────────────
 groq_key = ""
@@ -575,10 +578,10 @@ with st.sidebar:
         appetite[key] = st.slider(
             f"{icon} {label}",
             min_value=10, max_value=90,
-            value=st.session_state.appetite[key],
+            value=st.session_state["appetite"].get(key, _DEFAULT_APPETITE[key]),
             step=5
         )
-    st.session_state.appetite = appetite
+    st.session_state["appetite"] = appetite
 
     st.markdown('<div class="spec-section" style="margin-top:1.5rem">API</div>', unsafe_allow_html=True)
     if groq_key:
@@ -684,12 +687,12 @@ col_btn, col_meta = st.columns([2, 4])
 with col_btn:
     run = st.button("◈  Run Risk Register", type="primary", use_container_width=True)
 with col_meta:
-    if st.session_state.last_run:
-        st.markdown(f'<div style="font-family: JetBrains Mono, monospace; font-size: 11px; color: #1e3a5f; padding: 12px 0;">Last run: {st.session_state.last_run}</div>', unsafe_allow_html=True)
+    if st.session_state["last_run"]:
+        st.markdown(f'<div style="font-family: JetBrains Mono, monospace; font-size: 11px; color: #1e3a5f; padding: 12px 0;">Last run: {st.session_state["last_run"]}</div>', unsafe_allow_html=True)
 
 # ─── Execution ────────────────────────────────────────────────────────────────
 if run and suppliers:
-    with st.spinner("Scanning signals and scoring suppliers..."):
+    with st.spinner("Scoring suppliers..." if demo_mode else "Fetching live signals and scoring suppliers..."):
         prog = st.progress(0)
         all_scored = []
 
@@ -706,14 +709,14 @@ if run and suppliers:
 
             scored = score_supplier(
                 s["name"], s["country"], g_sig, f_sig,
-                st.session_state.appetite
+                st.session_state["appetite"]
             )
             all_scored.append(scored)
 
         prog.progress(95, text="Building register...")
         register = build_register(all_scored)
-        st.session_state.register = register
-        st.session_state.last_run = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+        st.session_state["register"] = register
+        st.session_state["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
         prog.empty()
 
     breaches = sum(1 for r in register if r["breach"])
@@ -726,8 +729,8 @@ elif run and not suppliers:
     st.warning("Add at least one supplier above")
 
 # ─── Results ─────────────────────────────────────────────────────────────────
-if st.session_state.register:
-    register = st.session_state.register
+if st.session_state["register"]:
+    register = st.session_state["register"]
 
     st.markdown('<div class="spec-divider"></div>', unsafe_allow_html=True)
     st.markdown('<div class="spec-section">Risk Summary</div>', unsafe_allow_html=True)
@@ -783,7 +786,7 @@ if st.session_state.register:
         ))
 
         # Appetite lines
-        avg_app = sum(st.session_state.appetite.values()) / len(st.session_state.appetite)
+        avg_app = sum(st.session_state["appetite"].values()) / len(st.session_state["appetite"])
         fig_bar.add_vline(
             x=avg_app,
             line_dash="dot",
@@ -934,7 +937,7 @@ if st.session_state.register:
                 ]
                 for dk, dl in dim_labels:
                     d_score = dims.get(dk, 0)
-                    d_app   = st.session_state.appetite.get(dk, 50)
+                    d_app   = st.session_state["appetite"].get(dk, 50)
                     over    = d_score > d_app
                     score_cls_d = "dim-breach" if over else "dim-ok"
 
@@ -949,7 +952,7 @@ if st.session_state.register:
         if breach and groq_key:
             with st.expander(f"◈  AI Risk Brief — {r['name']}", expanded=False):
                 with st.spinner("Generating brief..."):
-                    brief = generate_risk_brief(r, st.session_state.appetite, groq_key)
+                    brief = generate_risk_brief(r, st.session_state["appetite"], groq_key)
                 st.markdown(f'<div style="font-family: Space Grotesk, sans-serif; font-size: 13px; line-height: 1.7; color: #94a3b8;">{brief}</div>', unsafe_allow_html=True)
 
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
