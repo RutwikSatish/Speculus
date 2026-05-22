@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPECULUS — Supply Chain Risk Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink:      #0a0d14;
+  --paper:    #f5f2eb;
+  --rule:     #d8d0c0;
+  --mid:      #8a8070;
+  --accent:   #c8320a;
+  --accent2:  #1a4a8a;
+  --text:     #1a1714;
+  --serif:    'Instrument Serif', Georgia, serif;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Barlow', sans-serif;
+  --cond:     'Barlow Condensed', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.6;
+}
+
+/* ── Masthead ── */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 1.2rem 0 0;
+  margin-bottom: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.masthead-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 4rem;
+  margin-bottom: 1rem;
+}
+
+.masthead-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--mid);
+  letter-spacing: 0.1em;
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+.masthead-meta a {
+  color: var(--accent2);
+  text-decoration: none;
+}
+
+.masthead-meta a:hover { text-decoration: underline; }
+
+.issue-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--mid);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.nameplate {
+  text-align: center;
+  padding: 0 4rem 1.5rem;
+  position: relative;
+}
+
+.nameplate-rule {
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.2rem;
+}
+
+.nameplate h1 {
+  font-family: var(--cond);
+  font-size: clamp(72px, 12vw, 140px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  color: var(--ink);
+  margin-bottom: 0.3rem;
+  position: relative;
+}
+
+.nameplate h1 span {
+  color: var(--accent);
+}
+
+.nameplate-sub {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  color: var(--mid);
+  letter-spacing: 0.02em;
+}
+
+.tagline-strip {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 8px 4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tagline-strip .dot { color: var(--accent); margin: 0 8px; }
+
+/* ── Hero section ── */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0;
+  padding: 0 4rem;
+  border-bottom: 1px solid var(--rule);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeup 0.8s ease 0.2s forwards;
+}
+
+.hero-left {
+  padding: 3rem 3rem 3rem 0;
+  border-right: 1px solid var(--rule);
+}
+
+.hero-right {
+  padding: 3rem 0 3rem 3rem;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.hero-statement {
+  font-family: var(--serif);
+  font-size: clamp(26px, 3.5vw, 42px);
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 1.5rem;
+}
+
+.hero-statement em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hero-body {
+  font-size: 15px;
+  color: #3a3530;
+  line-height: 1.75;
+  margin-bottom: 1.5rem;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin-top: 2rem;
+}
+
+.stat-cell {
+  background: var(--paper);
+  padding: 1rem 1.2rem;
+}
+
+.stat-num {
+  font-family: var(--cond);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.stat-num.red { color: var(--accent); }
+.stat-num.blue { color: var(--accent2); }
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--mid);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Pull quote ── */
+.pull-quote {
+  border-left: 4px solid var(--accent);
+  padding: 1rem 1.5rem;
+  margin: 2rem 0;
+  background: rgba(200, 50, 10, 0.04);
+}
+
+.pull-quote p {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.pull-quote cite {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--mid);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-style: normal;
+}
+
+/* ── Main content grid ── */
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1px 1fr;
+  gap: 0;
+  padding: 0 4rem;
+  border-bottom: 1px solid var(--rule);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeup 0.8s ease 0.5s forwards;
+}
+
+.main-column {
+  padding: 3rem 3rem 3rem 0;
+  border-right: 1px solid var(--rule);
+}
+
+.side-column {
+  padding: 3rem 0 3rem 2.5rem;
+}
+
+.article-headline {
+  font-family: var(--cond);
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--ink);
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.article-body p {
+  font-size: 15px;
+  color: #3a3530;
+  line-height: 1.8;
+  margin-bottom: 1.2rem;
+}
+
+.article-body p:last-child { margin-bottom: 0; }
+
+.article-body strong { font-weight: 600; color: var(--ink); }
+
+/* ── Problem list ── */
+.problem-list {
+  list-style: none;
+  margin: 1.5rem 0;
+}
+
+.problem-list li {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: flex-start;
+}
+
+.problem-list li:last-child { border-bottom: none; }
+
+.problem-num {
+  font-family: var(--cond);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--rule);
+  line-height: 1;
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.problem-content h4 {
+  font-family: var(--cond);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.problem-content p {
+  font-size: 13px !important;
+  margin-bottom: 0 !important;
+}
+
+/* ── Framework table ── */
+.framework-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 13px;
+}
+
+.framework-table th {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--mid);
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--ink);
+  text-align: left;
+}
+
+.framework-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.framework-table td:first-child {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent2);
+  white-space: nowrap;
+}
+
+.framework-table tr:last-child td { border-bottom: none; }
+
+/* ── How it works ── */
+.steps {
+  counter-reset: step;
+  list-style: none;
+  margin: 1.5rem 0;
+}
+
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 1rem;
+  padding: 1.2rem 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: flex-start;
+}
+
+.steps li:last-child { border-bottom: none; }
+
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--cond);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--rule);
+  line-height: 1;
+}
+
+.step-content h4 {
+  font-family: var(--cond);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.step-content p {
+  font-size: 13px;
+  color: #5a5248;
+  line-height: 1.5;
+  margin-bottom: 0 !important;
+}
+
+/* ── Sidebar widgets ── */
+.sidebar-widget {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sidebar-widget:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.widget-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: 1rem;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ref-list {
+  list-style: none;
+}
+
+.ref-list li {
+  font-size: 12px;
+  color: #5a5248;
+  line-height: 1.5;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ref-list li:last-child { border-bottom: none; }
+
+.ref-num {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.data-source-card {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.data-source-card:last-child { border-bottom: none; }
+
+.ds-name {
+  font-family: var(--cond);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.ds-meta {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--mid);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ds-desc {
+  font-size: 12px;
+  color: #5a5248;
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* ── Validation section ── */
+.validation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 1.5rem 0;
+}
+
+.validation-cell {
+  background: var(--paper);
+  padding: 1.2rem;
+}
+
+.validation-cell .status {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.status.verified { color: #2a7a3a; }
+.status.honest   { color: var(--accent2); }
+.status.synthetic { color: var(--accent); }
+
+.validation-cell h4 {
+  font-family: var(--cond);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.validation-cell p {
+  font-size: 12px;
+  color: #5a5248;
+  line-height: 1.5;
+}
+
+/* ── CTA strip ── */
+.cta-strip {
+  background: var(--ink);
+  padding: 4rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3rem;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeup 0.8s ease 0.8s forwards;
+}
+
+.cta-text h2 {
+  font-family: var(--cond);
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 700;
+  color: var(--paper);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.5rem;
+}
+
+.cta-text p {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: rgba(245, 242, 235, 0.5);
+}
+
+.cta-button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  background: var(--accent);
+  color: white;
+  padding: 1.2rem 2.5rem;
+  font-family: var(--cond);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+
+.cta-button:hover {
+  background: #a82808;
+  transform: translateY(-2px);
+}
+
+.cta-button span {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  opacity: 0.7;
+  text-transform: lowercase;
+}
+
+/* ── Footer ── */
+footer {
+  padding: 2rem 4rem;
+  border-top: 2px solid var(--ink);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--mid);
+  line-height: 1.7;
+}
+
+footer a { color: var(--accent2); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+footer .footer-brand {
+  font-family: var(--cond);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+
+/* ── Animations ── */
+@keyframes fadeup {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Inline code ── */
+code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(26, 74, 138, 0.08);
+  color: var(--accent2);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .masthead-top { padding: 0 2rem; }
+  .nameplate    { padding: 0 2rem 1.5rem; }
+  .tagline-strip { padding: 8px 2rem; flex-wrap: wrap; gap: 4px; }
+  .hero         { grid-template-columns: 1fr; padding: 0 2rem; }
+  .hero-left    { padding: 2rem 0; border-right: none; border-bottom: 1px solid var(--rule); }
+  .hero-right   { padding: 2rem 0; }
+  .content-grid { grid-template-columns: 1fr; padding: 0 2rem; }
+  .main-column  { padding: 2rem 0; border-right: none; border-bottom: 1px solid var(--rule); }
+  .side-column  { padding: 2rem 0; }
+  .cta-strip    { grid-template-columns: 1fr; padding: 2rem; }
+  .validation-grid { grid-template-columns: 1fr; }
+  footer        { grid-template-columns: 1fr; padding: 2rem; gap: 1.5rem; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ── MASTHEAD ─────────────────────────────────────────────────────────────── -->
+<header class="masthead">
+  <div class="masthead-top">
+    <div class="masthead-meta">
+      Rutwik Satish · MS Engineering Management<br>
+      Northeastern University · Boston, MA · 2026<br>
+      <a href="https://linkedin.com/in/rutwiksatish">linkedin.com/in/rutwiksatish</a>
+    </div>
+    <div class="masthead-meta" style="text-align:right">
+      <span class="issue-tag">Supply Chain Risk Intelligence</span><br><br>
+      Built · May 2026<br>
+      Version 1.0
+    </div>
+  </div>
+
+  <div class="nameplate-rule" style="margin: 0 4rem;"></div>
+
+  <div class="nameplate">
+    <h1>SPEC<span>U</span>LUS</h1>
+    <div class="nameplate-sub">See the risk before it sees you</div>
+  </div>
+
+  <div class="tagline-strip">
+    <span>ISO 31000:2018</span>
+    <span class="dot">◈</span>
+    <span>COSO ERM 2017</span>
+    <span class="dot">◈</span>
+    <span>SCOR v13</span>
+    <span class="dot">◈</span>
+    <span>World Bank WGI 2024</span>
+    <span class="dot">◈</span>
+    <span>GDELT 2.0</span>
+    <span class="dot">◈</span>
+    <span>Zsidisin &amp; Ritchie (2009)</span>
+  </div>
+</header>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="section-label">The Problem</div>
+
+    <div class="hero-statement">
+      Most supply chain teams find out about <em>disruptions after they happen.</em>
+    </div>
+
+    <div class="hero-body">
+      The global supply chain has been rocked by COVID-19, the Russia-Ukraine war, Red Sea shipping disruptions, and escalating US-China trade tensions — all within five years. Every one of these crises was visible in advance to anyone watching the right signals.
+    </div>
+
+    <div class="hero-body">
+      The problem is not that the data does not exist. It does. The problem is that turning that data into a structured, ISO-compliant risk register — and keeping it current — requires hours of manual work every week that most supply chain teams simply do not have.
+    </div>
+
+    <div class="pull-quote">
+      <p>"46% of companies still track supply chain risk in manual spreadsheets. 42% cite lack of real-time financial impact data as their main limitation."</p>
+      <cite>Tradeverifyd Supply Chain Intelligence Report, 2026</cite>
+    </div>
+
+    <div class="hero-body">
+      I built SPECULUS to solve this. Not as a class project — as a practitioner tool grounded in the same academic frameworks that supply chain risk professionals are evaluated against.
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="section-label">The Gap in Numbers</div>
+
+    <div class="stat-grid">
+      <div class="stat-cell">
+        <div class="stat-num red">46%</div>
+        <div class="stat-label">Of companies using manual spreadsheets for risk tracking</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num red">42%</div>
+        <div class="stat-label">Lack real-time financial impact data during disruptions</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num blue">$50K+</div>
+        <div class="stat-label">Annual cost of enterprise tools like Resilinc or Everstream</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num blue">78%</div>
+        <div class="stat-label">Of supply chain leaders expect disruptions to intensify</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+      <div class="section-label">What SPECULUS replaces</div>
+      <ul class="problem-list">
+        <li>
+          <div class="problem-num">01</div>
+          <div class="problem-content">
+            <h4>The Static Risk Spreadsheet</h4>
+            <p>Last updated 18 months ago. No live signals. No ISO compliance. No recommended actions. SPECULUS replaces it with a living register that auto-updates from GDELT and the Federal Register.</p>
+          </div>
+        </li>
+        <li>
+          <div class="problem-num">02</div>
+          <div class="problem-content">
+            <h4>Manual Weekly Risk Briefs</h4>
+            <p>2–3 hours every Monday translating raw signals into a report for leadership. SPECULUS generates this automatically, in the exact format supply chain directors produce manually.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ── MAIN CONTENT ──────────────────────────────────────────────────────────── -->
+<section class="content-grid fade-in">
+  <div class="main-column">
+
+    <!-- My Approach -->
+    <div class="section-label">My Approach</div>
+    <h2 class="article-headline">Built on frameworks. Grounded in evidence. Transparent about limitations.</h2>
+
+    <div class="article-body">
+      <p>
+        Most risk dashboards are built by engineers who read the marketing materials of existing tools. SPECULUS is built by someone who read the primary sources — the ISO standard, the COSO framework, the ASCM SCOR model, and the peer-reviewed academic literature on supply chain risk taxonomy.
+      </p>
+      <p>
+        The approach is <strong>semi-quantitative risk assessment</strong>, which ISO 31000:2018 §6.4.3 explicitly endorses as valid when historical probability data is unavailable — which is the case for most supply chain disruption scenarios. Each supplier is scored across five dimensions derived from two primary sources: country governance baselines from World Bank Worldwide Governance Indicators 2024, and live disruption signals from the GDELT 2.0 geopolitical events database.
+      </p>
+      <p>
+        Every score in the system has a citable source. Every claim in the documentation has a reference. Anything that is estimated or constructed is clearly labeled as such. This is not how most portfolio projects are built. It is how practitioners operate.
+      </p>
+    </div>
+
+    <!-- Academic foundations -->
+    <div style="margin-top: 2.5rem;">
+      <div class="section-label">Academic and Industry Foundations</div>
+      <h3 class="article-headline" style="font-size: 20px; margin-bottom: 1rem;">Five frameworks. Each applied, not just cited.</h3>
+
+      <table class="framework-table">
+        <thead>
+          <tr>
+            <th>Framework</th>
+            <th>How SPECULUS applies it</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ISO 31000:2018</td>
+            <td>Core risk assessment loop (identify → analyse → evaluate → treat → monitor). The living register implements the mandatory continuous monitoring requirement of §6.6. COSO response taxonomy is applied at threshold breach per §6.5.</td>
+          </tr>
+          <tr>
+            <td>COSO ERM 2017</td>
+            <td>Four-response taxonomy: Avoid, Reduce, Share, Accept. Applied based on gap between composite score and user-defined appetite threshold. Response actions are drawn directly from COSO Chapter 8 treatment options.</td>
+          </tr>
+          <tr>
+            <td>SCOR v13 (ASCM)</td>
+            <td>Each risk dimension is mapped to its primary SCOR performance attribute: geopolitical → Agility, supplier health → Reliability, logistics → Responsiveness, regulatory → Cost. This translates risk scores into supply chain performance language executives understand.</td>
+          </tr>
+          <tr>
+            <td>Zsidisin &amp; Ritchie (2009)</td>
+            <td>Four-source risk taxonomy: Supply, Demand, Manufacturing/Process, Environmental. SPECULUS Module 1 covers Supply and Environmental sources. Demand-side signals are noted as a Module 2 extension. This is the most cited SCRM taxonomy in the peer-reviewed literature.</td>
+          </tr>
+          <tr>
+            <td>World Bank WGI 2024</td>
+            <td>Country baseline risk scores derived from five indicators: Political Stability (PV), Rule of Law (RL), Government Effectiveness (GE), Regulatory Quality (RQ), Control of Corruption (CC). Inverted from 0-100 governance scale to 0-100 risk scale. 38 countries covered. Data year: 2024.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- How it works -->
+    <div style="margin-top: 2.5rem;">
+      <div class="section-label">What SPECULUS Actually Does</div>
+      <h3 class="article-headline" style="font-size: 20px; margin-bottom: 1rem;">Six steps from supplier list to executive-ready risk register.</h3>
+
+      <ol class="steps">
+        <li>
+          <div class="step-content">
+            <h4>Supplier ingestion</h4>
+            <p>User uploads a list of supplier names and country codes (CSV or manual entry). No ERP integration required. No IT department needed. Setup time: under 2 minutes.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-content">
+            <h4>Risk appetite calibration</h4>
+            <p>User sets threshold sliders for each of the five ISO 31000 risk dimensions. Any supplier scoring above their threshold triggers a COSO ERM response. Thresholds are fully configurable to the organisation's risk tolerance.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-content">
+            <h4>Live signal ingestion</h4>
+            <p>For each supplier-country pair, SPECULUS queries GDELT 2.0 (geopolitical events, disruption news — free, no API key) and the US Federal Register RSS (tariff and trade policy changes — public domain). Both sources update in near real-time.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-content">
+            <h4>Semi-quantitative scoring</h4>
+            <p>Each supplier is scored across five dimensions using WGI 2024 country baselines plus a signal boost calculated from GDELT news frequency and severity. Composite score is a weighted sum. All weights and formulas are shown transparently in the interface.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-content">
+            <h4>COSO ERM response engine</h4>
+            <p>Suppliers breaching any appetite threshold receive a COSO response classification (Avoid / Reduce / Share / Accept), specific recommended actions, a SCOR performance attribute mapping, and — if a Groq API key is provided — an AI-generated executive risk brief.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-content">
+            <h4>ISO 31000 compliant export</h4>
+            <p>The full risk register exports as CSV or JSON in a format that satisfies ISO 31000 §6.7 documentation requirements. Includes review cadence (weekly/monthly/quarterly based on score), audit trail, and COSO action log.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Validation -->
+    <div style="margin-top: 2.5rem;">
+      <div class="section-label">What Is Verified vs. Estimated</div>
+      <h3 class="article-headline" style="font-size: 20px; margin-bottom: 1rem;">Transparency about the methodology is non-negotiable.</h3>
+
+      <div class="article-body">
+        <p>Most tools hide their scoring methodology behind proprietary claims. SPECULUS publishes every formula, every source, and every limitation openly. Here is the honest breakdown:</p>
+      </div>
+
+      <div class="validation-grid">
+        <div class="validation-cell">
+          <div class="status verified">◈ Verified</div>
+          <h4>ISO 31000, COSO ERM, SCOR frameworks</h4>
+          <p>Applied directly from primary sources. Every framework reference is citable and cross-checked against published standards.</p>
+        </div>
+        <div class="validation-cell">
+          <div class="status verified">◈ Verified</div>
+          <h4>Country baseline scores</h4>
+          <p>Derived directly from World Bank WGI 2024 dataset. Downloaded, parsed, and inverted programmatically. 38 countries, 5 indicators, data year 2024.</p>
+        </div>
+        <div class="validation-cell">
+          <div class="status verified">◈ Verified</div>
+          <h4>Live signal data</h4>
+          <p>GDELT 2.0 Doc API (real-time, free, no key required). US Federal Register RSS (public domain). Both are live data sources, not synthetic.</p>
+        </div>
+        <div class="validation-cell">
+          <div class="status honest">◈ Documented heuristic</div>
+          <h4>Dimension weights</h4>
+          <p>Geopolitical 25%, Supplier Health 25%, Logistics 20%, Single Source 15%, Regulatory 15%. Grounded in practitioner literature. Not from a single paper. Calibrate to your industry.</p>
+        </div>
+        <div class="validation-cell">
+          <div class="status honest">◈ Documented heuristic</div>
+          <h4>Signal severity scoring</h4>
+          <p>Keyword-based heuristic (critical terms add 3 points, moderate terms add 2). Original algorithm documented in source code. Not from a published paper.</p>
+        </div>
+        <div class="validation-cell">
+          <div class="status synthetic">◈ Demo only</div>
+          <h4>Demo mode signals</h4>
+          <p>Pre-seeded signals for the demo portfolio are clearly labeled "DEMO — simulated" in the interface. WGI country scores in demo mode are real. Signals are not.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── SIDEBAR ── -->
+  <div class="side-column">
+
+    <!-- Data sources -->
+    <div class="sidebar-widget">
+      <div class="widget-title">Data Sources</div>
+      <div class="data-source-card">
+        <div class="ds-name">World Bank WGI 2024</div>
+        <div class="ds-meta">Free · Public Domain · 214 Countries</div>
+        <div class="ds-desc">Six governance indicators. Political Stability, Rule of Law, Govt Effectiveness, Regulatory Quality, Control of Corruption, Voice &amp; Accountability. Downloaded directly from databank.worldbank.org.</div>
+      </div>
+      <div class="data-source-card">
+        <div class="ds-name">GDELT 2.0 Doc API</div>
+        <div class="ds-meta">Free · No API Key · Updates every 15 min</div>
+        <div class="ds-desc">Global Database of Events, Language and Tone. 100+ languages. 65+ countries. The most comprehensive open geopolitical event database in existence.</div>
+      </div>
+      <div class="data-source-card">
+        <div class="ds-name">US Federal Register RSS</div>
+        <div class="ds-meta">Free · Public Domain · Daily updates</div>
+        <div class="ds-desc">Official US government publication of tariff rules, export controls, and trade policy changes. Parsed by country for regulatory risk signals.</div>
+      </div>
+      <div class="data-source-card">
+        <div class="ds-name">Groq AI (Llama 3)</div>
+        <div class="ds-meta">Free tier · API key required</div>
+        <div class="ds-desc">Powers AI-generated executive risk briefs for suppliers that breach appetite thresholds. Optional — the register works without it.</div>
+      </div>
+    </div>
+
+    <!-- References -->
+    <div class="sidebar-widget">
+      <div class="widget-title">References</div>
+      <ul class="ref-list">
+        <li>
+          <span class="ref-num">[1]</span>
+          <span>ISO 31000:2018. <em>Risk management — Guidelines.</em> International Organisation for Standardisation, Geneva.</span>
+        </li>
+        <li>
+          <span class="ref-num">[2]</span>
+          <span>COSO (2017). <em>Enterprise Risk Management — Integrating with Strategy and Performance.</em> AICPA.</span>
+        </li>
+        <li>
+          <span class="ref-num">[3]</span>
+          <span>ASCM (2022). <em>SCOR Supply Chain Reference Model v13.</em> Association for Supply Chain Management.</span>
+        </li>
+        <li>
+          <span class="ref-num">[4]</span>
+          <span>Zsidisin, G.A. &amp; Ritchie, B. (2009). <em>Supply Chain Risk: A Handbook of Assessment, Management and Performance.</em> Springer.</span>
+        </li>
+        <li>
+          <span class="ref-num">[5]</span>
+          <span>Kaufmann, D., Kraay, A. &amp; Mastruzzi, M. (2010). The Worldwide Governance Indicators: A Summary of Methodology. <em>World Bank Policy Research Working Paper No. 5430.</em></span>
+        </li>
+        <li>
+          <span class="ref-num">[6]</span>
+          <span>Oliveira, U.R. et al. (2017). The ISO 31000 standard in supply chain risk management. <em>Journal of Cleaner Production,</em> 151, 616-633.</span>
+        </li>
+        <li>
+          <span class="ref-num">[7]</span>
+          <span>Chopra, S. &amp; Meindl, P. (2021). <em>Supply Chain Management: Strategy, Planning and Operations</em> (7th ed.). Pearson.</span>
+        </li>
+        <li>
+          <span class="ref-num">[8]</span>
+          <span>Tradeverifyd (2026). <em>79 Supply Chain Statistics.</em> tradeverifyd.com.</span>
+        </li>
+        <li>
+          <span class="ref-num">[9]</span>
+          <span>Everstream Analytics (2026). <em>Annual Risk Report.</em> everstream.ai.</span>
+        </li>
+        <li>
+          <span class="ref-num">[10]</span>
+          <span>MetricGate (2026). Supply Chain Risk Score Calculator. metricgate.com/docs/supply-chain-risk-score.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Tech stack -->
+    <div class="sidebar-widget">
+      <div class="widget-title">Technical Stack</div>
+      <div style="font-size: 12px; color: #5a5248; line-height: 2.2;">
+        <code>Python 3.11</code> — Core application<br>
+        <code>Streamlit</code> — UI and deployment<br>
+        <code>Pandas</code> — Data processing<br>
+        <code>Plotly</code> — Visualisations<br>
+        <code>Requests + feedparser</code> — Signal ingestion<br>
+        <code>Groq AI (Llama 3)</code> — Risk briefs<br>
+        <code>World Bank WGI</code> — Country baselines<br>
+        <code>GDELT 2.0</code> — Live signals<br>
+        <code>GitHub Actions</code> — Keepalive automation
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="sidebar-widget">
+      <div class="widget-title">About the Builder</div>
+      <div style="font-size: 12px; color: #5a5248; line-height: 1.7;">
+        <strong style="color: var(--ink);">Rutwik Satish</strong><br>
+        MS Engineering Management<br>
+        Supply Chain Engineering Track<br>
+        Northeastern University, Boston<br>
+        Graduated May 2026 · GPA 3.7<br><br>
+        Internship: Mercedes-Benz R&amp;D India<br>
+        Lean Six Sigma Green Belt (PMI)<br>
+        Celonis Process Mining (Credly)<br>
+        SAP Analytics Cloud · 4× Intermediate<br>
+        CSCMP Demand Planning Professional<br><br>
+        <a href="https://linkedin.com/in/rutwiksatish" style="color: var(--accent2);">linkedin.com/in/rutwiksatish</a><br>
+        <a href="https://github.com/rutwiksatish" style="color: var(--accent2);">github.com/rutwiksatish</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── CTA ────────────────────────────────────────────────────────────────────── -->
+<section class="cta-strip">
+  <div class="cta-text">
+    <h2>See it running live.</h2>
+    <p>Demo mode loads instantly — no setup required. Real WGI 2024 country scores. Switch to Live Mode for real-time GDELT signals.</p>
+  </div>
+  <a href="https://speculus.streamlit.app/" target="_blank" class="cta-button">
+    Launch SPECULUS
+    <span>speculus.streamlit.app</span>
+  </a>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────────────────────────────────── -->
+<footer>
+  <div>
+    <div class="footer-brand">SPECULUS</div>
+    Supply Chain Risk Intelligence Platform<br>
+    Version 1.0 · May 2026<br>
+    Built by Rutwik Satish
+  </div>
+  <div>
+    Frameworks<br>
+    ISO 31000:2018 · COSO ERM 2017<br>
+    SCOR v13 (ASCM) · WB WGI 2024<br>
+    Zsidisin &amp; Ritchie (2009)
+  </div>
+  <div>
+    Live App<br>
+    <a href="https://speculus.streamlit.app/">speculus.streamlit.app</a><br><br>
+    Source Code<br>
+    <a href="https://github.com/rutwiksatish/speculus">github.com/rutwiksatish/speculus</a>
+  </div>
+</footer>
+
+<script>
+// Intersection Observer for scroll animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
