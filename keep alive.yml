@@ -1,0 +1,51 @@
+# SPECULUS Keepalive
+# ─────────────────────────────────────────────────────────────────────────────
+# Streamlit Community Cloud sleeps apps after 12 hours of inactivity.
+# This workflow pings the app every 6 hours to keep it awake.
+#
+# Setup:
+#   1. Replace YOUR_STREAMLIT_URL below with your actual app URL
+#   2. Push to GitHub — the workflow runs automatically
+#
+# Source: https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app
+
+name: Keepalive — SPECULUS
+
+on:
+  schedule:
+    # Ping every 6 hours (well within 12h sleep threshold)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Ping SPECULUS app
+        run: |
+          echo "Pinging SPECULUS to prevent sleep..."
+          
+          # Replace this URL with your actual Streamlit app URL
+          APP_URL="https://YOUR_USERNAME-speculus-app-XXXX.streamlit.app"
+          
+          # Send request with cookie handling (required for Streamlit auth redirect)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -L \
+            -c /tmp/cookies.txt \
+            -b /tmp/cookies.txt \
+            -H "User-Agent: Mozilla/5.0 (compatible; SPECULUS-Keepalive/1.0)" \
+            --max-time 60 \
+            "$APP_URL")
+          
+          echo "HTTP Status: $STATUS"
+          
+          if [ "$STATUS" = "200" ]; then
+            echo "✓ SPECULUS is awake and responding"
+          else
+            echo "⚠ Unexpected status $STATUS — app may need manual wake"
+          fi
+
+      - name: Log keepalive time
+        run: echo "Keepalive ping completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
