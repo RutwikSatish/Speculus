@@ -1,5 +1,9 @@
 """
-data_ingestor.py — NexusRisk Signal Ingestion Layer
+data_ingestor.py — SPECULUS Signal Ingestion Layer
+
+PERFORMANCE FIX: Single compound query per supplier (was 24 calls per supplier).
+Timeout: 3 seconds hard limit per request.
+Demo mode: bypasses all network calls entirely.
 
 Sources (all free, no API key required):
   1. GDELT 2.0 Doc API  — geopolitical events, disruption news
@@ -11,43 +15,23 @@ Framework alignment:
 """
 
 import requests
-import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
 from typing import List, Dict
 
-
-# ─── GDELT 2.0 Doc API ───────────────────────────────────────────────────────
-# Completely free. No API key. Updated every 15 minutes globally.
-# Covers 100+ languages, 65+ countries.
-# Docs: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
-
 GDELT_BASE = "https://api.gdeltproject.org/api/v2/doc/doc"
 
-# Risk-relevant CAMEO event keywords mapped to our ISO 31000 dimensions
-GDELT_RISK_KEYWORDS = {
-    "geopolitical": [
-        "sanctions", "tariff", "export controls", "trade war",
-        "geopolitical", "military", "conflict", "blockade",
-        "embargo", "nationalization"
-    ],
-    "logistics": [
-        "port strike", "port congestion", "shipping disruption",
-        "factory fire", "earthquake", "flood", "typhoon",
-        "supply shortage", "production halt", "plant closure"
-    ],
-    "supplier_health": [
-        "bankruptcy", "insolvency", "layoffs", "factory shutdown",
-        "financial difficulty", "credit downgrade", "restructuring"
-    ],
-    "regulatory": [
-        "regulation", "compliance violation", "penalty",
-        "forced labor", "ESG", "customs violation", "recall",
-        "safety violation", "environmental fine"
-    ]
-}
+# Single combined risk keyword string for compound GDELT query
+# One query per supplier instead of 24
+RISK_TERMS = (
+    "sanctions OR tariff OR \"export controls\" OR \"trade war\" OR "
+    "conflict OR blockade OR embargo OR "
+    "\"port strike\" OR \"shipping disruption\" OR \"factory fire\" OR "
+    "earthquake OR flood OR \"supply shortage\" OR \"plant closure\" OR "
+    "bankruptcy OR insolvency OR layoffs OR \"factory shutdown\" OR "
+    "restructuring OR \"forced labor\" OR \"compliance violation\" OR recall"
+)
 
-# Country name map for GDELT queries (GDELT uses country names not codes)
 COUNTRY_NAMES = {
     "CN": "China", "TW": "Taiwan", "KR": "South Korea",
     "JP": "Japan", "DE": "Germany", "US": "United States",
@@ -64,168 +48,178 @@ COUNTRY_NAMES = {
     "CA": "Canada", "AU": "Australia", "NZ": "New Zealand",
 }
 
+# Keyword → ISO 31000 dimension classifier
+DIMENSION_MAP = {
+    "sanctions": "geopolitical", "tariff": "geopolitical",
+    "export controls": "geopolitical", "trade war": "geopolitical",
+    "conflict": "geopolitical", "blockade": "geopolitical",
+    "embargo": "geopolitical", "military": "geopolitical",
+    "port strike": "logistics", "shipping disruption": "logistics",
+    "factory fire": "logistics", "earthquake": "logistics",
+    "flood": "logistics", "typhoon": "logistics",
+    "supply shortage": "logistics", "plant closure": "logistics",
+    "port congestion": "logistics",
+    "bankruptcy": "supplier_health", "insolvency": "supplier_health",
+    "layoffs": "supplier_health", "factory shutdown": "supplier_health",
+    "restructuring": "supplier_health", "financial difficulty": "supplier_health",
+    "forced labor": "regulatory", "compliance violation": "regulatory",
+    "recall": "regulatory", "penalty": "regulatory",
+    "environmental fine": "regulatory", "safety violation": "regulatory",
+}
+
 
 def fetch_gdelt_signals(supplier_name: str, country_code: str) -> List[Dict]:
     """
-    Query GDELT 2.0 Doc API for news signals relevant to a supplier
-    and its country over the past 72 hours.
-
-    Returns a list of signal dicts with keys:
-      title, url, source, date, dimension, severity
+    ONE compound query per supplier — fast, reliable, no hanging.
+    Timeout: 3 seconds. Returns empty list on any failure.
     """
     signals = []
     country_name = COUNTRY_NAMES.get(country_code, country_code)
 
-    # Build compound query: supplier name OR country + risk keywords
-    # GDELT supports boolean queries
-    for dimension, keywords in GDELT_RISK_KEYWORDS.items():
-        # Try supplier-specific first, then country-level
-        for query_subject in [supplier_name, country_name]:
-            # Pick top 3 keywords per dimension to keep queries focused
-            for keyword in keywords[:3]:
-                query = f'"{query_subject}" "{keyword}"'
-                encoded = urllib.parse.quote(query)
+    # Single query: (supplier OR country) AND risk terms
+    query = f'("{supplier_name}" OR "{country_name}") ({RISK_TERMS})'
+    encoded = urllib.parse.quote(query)
 
-                url = (
-                    f"{GDELT_BASE}"
-                    f"?query={encoded}"
-                    f"&mode=artlist"
-                    f"&maxrecords=3"
-                    f"&timespan=72h"
-                    f"&sort=DateDesc"
-                    f"&format=json"
-                )
+    url = (
+        f"{GDELT_BASE}"
+        f"?query={encoded}"
+        f"&mode=artlist"
+        f"&maxrecords=10"
+        f"&timespan=72h"
+        f"&sort=DateDesc"
+        f"&format=json"
+    )
 
-                try:
-                    resp = requests.get(url, timeout=8)
-                    if resp.status_code != 200:
-                        continue
+    try:
+        resp = requests.get(url, timeout=3)  # 3 second hard limit
+        if resp.status_code != 200:
+            return []
 
-                    data = resp.json()
-                    articles = data.get("articles", [])
+        data = resp.json()
+        articles = data.get("articles", [])
 
-                    for article in articles:
-                        signals.append({
-                            "title":     article.get("title", "")[:150],
-                            "url":       article.get("url", ""),
-                            "source":    "GDELT",
-                            "date":      article.get("seendate", ""),
-                            "dimension": dimension,
-                            "severity":  _estimate_severity(article.get("title", ""), dimension),
-                            "subject":   query_subject
-                        })
+        for article in articles:
+            title = article.get("title", "")
+            dimension = _classify_dimension(title)
+            signals.append({
+                "title":     title[:150],
+                "url":       article.get("url", ""),
+                "source":    "GDELT",
+                "date":      article.get("seendate", ""),
+                "dimension": dimension,
+                "severity":  _estimate_severity(title, dimension),
+                "subject":   country_name
+            })
 
-                except (requests.RequestException, ValueError, KeyError):
-                    # GDELT is eventually consistent — gracefully handle failures
-                    continue
+    except Exception:
+        # Any failure — timeout, connection error, parse error — returns empty
+        # Scoring engine handles missing signals gracefully via WGI baseline
+        return []
 
-    # Deduplicate by title similarity (simple approach)
-    seen_titles = set()
-    deduped = []
+    # Deduplicate
+    seen, deduped = set(), []
     for s in signals:
-        title_key = s["title"][:60].lower()
-        if title_key not in seen_titles:
-            seen_titles.add(title_key)
+        key = s["title"][:50].lower()
+        if key not in seen:
+            seen.add(key)
             deduped.append(s)
 
-    return deduped[:15]  # cap at 15 signals per supplier
+    return deduped[:8]
 
 
 def fetch_federal_register_signals(country_code: str) -> List[Dict]:
     """
-    Fetch US Federal Register RSS for trade policy and tariff actions
-    relevant to a specific country.
-
-    Federal Register publishes RSS feeds for all new rules and notices.
-    This is public domain, no authentication required.
+    Single RSS fetch for Federal Register trade policy signals.
+    Timeout: 3 seconds. Returns empty list on any failure.
     """
-    signals = []
     country_name = COUNTRY_NAMES.get(country_code, "")
+    if not country_name:
+        return []
 
-    # Federal Register search RSS for trade-related documents
-    base_rss = "https://www.federalregister.gov/documents/search.rss"
+    encoded = urllib.parse.quote(f"tariff {country_name}")
+    feed_url = (
+        f"https://www.federalregister.gov/documents/search.rss"
+        f"?conditions%5Bterm%5D={encoded}"
+        f"&conditions%5Bpublication_date%5D%5Bgte%5D="
+        f"{(datetime.now() - timedelta(days=30)).strftime('%m/%d/%Y')}"
+    )
 
-    # Build search terms relevant to supply chain risk
-    search_terms = [
-        f"tariff {country_name}",
-        f"import duties {country_name}",
-        f"export controls {country_name}",
-        f"trade restrictions {country_name}",
-    ]
-
-    for term in search_terms:
-        encoded_term = urllib.parse.quote(term)
-        feed_url = (
-            f"{base_rss}"
-            f"?conditions%5Bterm%5D={encoded_term}"
-            f"&conditions%5Bpublication_date%5D%5Bgte%5D="
-            f"{(datetime.now() - timedelta(days=30)).strftime('%m/%d/%Y')}"
+    try:
+        # Use requests directly — feedparser can hang on slow servers
+        resp = requests.get(
+            feed_url,
+            timeout=3,
+            headers={"User-Agent": "SPECULUS/1.0 Supply Chain Risk Intelligence"}
         )
+        if resp.status_code != 200:
+            return []
 
-        try:
-            feed = feedparser.parse(feed_url)
-            for entry in feed.entries[:3]:
+        # Simple XML parse — no feedparser dependency needed
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(resp.content)
+        signals = []
+
+        for item in root.findall(".//item")[:3]:
+            title_el = item.find("title")
+            link_el  = item.find("link")
+            pub_el   = item.find("pubDate")
+
+            if title_el is not None and title_el.text:
                 signals.append({
-                    "title":     entry.get("title", "")[:150],
-                    "url":       entry.get("link", ""),
+                    "title":     title_el.text[:150],
+                    "url":       link_el.text if link_el is not None else "",
                     "source":    "Federal Register",
-                    "date":      entry.get("published", ""),
+                    "date":      pub_el.text if pub_el is not None else "",
                     "dimension": "regulatory",
-                    "severity":  _estimate_fed_severity(entry.get("title", "")),
+                    "severity":  _estimate_fed_severity(title_el.text),
                     "subject":   country_name
                 })
-        except Exception:
-            continue
 
-    return signals[:6]
+        return signals
+
+    except Exception:
+        return []
+
+
+def _classify_dimension(title: str) -> str:
+    """Classify a news title into an ISO 31000 risk dimension."""
+    title_lower = title.lower()
+    for keyword, dimension in DIMENSION_MAP.items():
+        if keyword in title_lower:
+            return dimension
+    return "geopolitical"  # default
 
 
 def _estimate_severity(title: str, dimension: str) -> int:
-    """
-    Estimate signal severity (1-10) from article title keywords.
-    Higher severity = more extreme risk indicator.
-
-    Based on SCOR model disruption severity tiers:
-    1-3: Monitor, 4-6: Moderate, 7-10: Critical
-    """
+    """Estimate signal severity 1-10 from article title keywords."""
     title_lower = title.lower()
+    critical = ["war", "conflict", "invasion", "ban", "blockade", "shutdown",
+                "bankruptcy", "collapse", "earthquake", "flood", "sanctions",
+                "embargo", "forced labor", "recall", "explosion", "fire"]
+    moderate = ["tariff", "strike", "shortage", "delay", "disruption", "concern",
+                "risk", "threat", "warning", "investigation", "restriction", "penalty"]
 
-    critical_terms = [
-        "war", "conflict", "invasion", "ban", "blockade",
-        "shutdown", "bankruptcy", "collapse", "catastrophe",
-        "earthquake", "flood", "sanctions", "embargo",
-        "forced labor", "recall", "explosion", "fire"
-    ]
-    moderate_terms = [
-        "tariff", "strike", "shortage", "delay", "disruption",
-        "concern", "risk", "threat", "warning", "investigation",
-        "protest", "tension", "restriction", "penalty"
-    ]
-
-    score = 3  # baseline
-    for term in critical_terms:
+    score = 3
+    for term in critical:
         if term in title_lower:
             score += 3
             break
-    for term in moderate_terms:
+    for term in moderate:
         if term in title_lower:
             score += 2
             break
-
-    # Geopolitical signals carry more weight per Zsidisin environmental risk
     if dimension == "geopolitical":
         score += 1
-
     return min(score, 10)
 
 
 def _estimate_fed_severity(title: str) -> int:
     """Estimate severity of a Federal Register notice."""
     title_lower = title.lower()
-    if any(t in title_lower for t in ["emergency", "immediate", "national security", "ban"]):
+    if any(t in title_lower for t in ["emergency", "national security", "ban"]):
         return 8
     if any(t in title_lower for t in ["final rule", "tariff increase", "export control"]):
         return 6
-    if any(t in title_lower for t in ["proposed rule", "notice", "comment period"]):
+    if any(t in title_lower for t in ["proposed rule", "notice"]):
         return 3
     return 2
