@@ -68,16 +68,36 @@ DIMENSION_MAP = {
 }
 
 
+# Company aliases for broader GDELT coverage
+COMPANY_ALIASES = {
+    "TSMC":               ["TSMC", "Taiwan Semiconductor", "Taiwan chip"],
+    "Foxconn":            ["Foxconn", "Hon Hai", "Apple supplier China"],
+    "Samsung Electronics":["Samsung Electronics", "Samsung foundry"],
+    "Bosch Automotive":   ["Bosch", "Robert Bosch"],
+    "Tata Steel":         ["Tata Steel", "Tata Group"],
+    "Flex Ltd":           ["Flex Ltd", "Flextronics"],
+    "Jabil Circuit":      ["Jabil"],
+    "Murata Manufacturing":["Murata"],
+    "Infineon Technologies":["Infineon"],
+    "DHL Supply Chain":   ["DHL", "Deutsche Post DHL"],
+    "Reliance Industries":["Reliance Industries", "Mukesh Ambani"],
+}
+
+
 def fetch_gdelt_signals(supplier_name: str, country_code: str) -> List[Dict]:
     """
-    ONE compound query per supplier — fast, reliable, no hanging.
+    Compound query per supplier with aliases — broader coverage.
     Timeout: 3 seconds. Returns empty list on any failure.
     """
     signals = []
     country_name = COUNTRY_NAMES.get(country_code, country_code)
 
-    # Single query: (supplier OR country) AND risk terms
-    query = f'("{supplier_name}" OR "{country_name}") ({RISK_TERMS})'
+    # Build supplier search terms (use aliases if available)
+    aliases = COMPANY_ALIASES.get(supplier_name, [supplier_name])
+    supplier_terms = " OR ".join(f'"{a}"' for a in aliases[:3])
+
+    # Combine supplier/country with risk terms
+    query = f'({supplier_terms} OR "{country_name}") ({RISK_TERMS})'
     encoded = urllib.parse.quote(query)
 
     url = (
