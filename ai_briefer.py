@@ -65,6 +65,9 @@ Your output is precise, structured, actionable, and grounded in SCRM best practi
 Never use generic filler. Every sentence must contain a specific fact or action.
 Write in the voice of a practitioner, not a consultant pitch."""
 
+    # Extract alternatives context if provided
+    alternatives_context = supplier_data.get("alternatives_context", "")
+
     user_prompt = f"""Generate a supply chain risk brief for this supplier breach.
 
 SUPPLIER: {supplier_data.get('name')} ({supplier_data.get('country')})
@@ -84,6 +87,9 @@ LIVE SIGNALS DETECTED (past 72 hours):
 
 SCOR PERFORMANCE ATTRIBUTE PRIMARILY AFFECTED: {supplier_data.get('scor_impact', 'Reliability')}
 ZSIDISIN RISK SOURCE TYPE: {supplier_data.get('zsidisin_source', 'Supply')}
+GEOPOLITICAL SCORING METHOD: {supplier_data.get('geo_detail', {}).get('methodology', 'WGI + GDELT')}
+
+{alternatives_context}
 
 Generate a brief with these exact sections:
 ## Executive Summary
@@ -100,15 +106,15 @@ Generate a brief with these exact sections:
 
 ## Recommended Actions
 **Immediate (0–7 days):**
-- [specific action]
-- [specific action]
+- [specific action with timeline]
+- [specific action with owner]
 
 **Short-term (1–4 weeks):**
-- [specific action]
+- [specific action — reference alternatives if relevant]
 - [specific action]
 
 **Strategic (this quarter):**
-- [specific action]
+- [specific action — dual-sourcing recommendation if single-source risk is high, reference specific alternative suppliers from the list above with estimated qualification timeline]
 
 ## Risk Register Note
 (One sentence for the ISO 31000 §6.7 audit trail)"""
