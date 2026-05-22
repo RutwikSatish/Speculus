@@ -40,9 +40,10 @@ DEMO_SUPPLIERS = [
     {"name": "Reliance Industries",     "country": "IN"},  # India — large, some regulatory exposure
 
     # ── High-Risk Geographies (intentionally included for demo contrast) ─────
-    {"name": "Pakistan Vendor A",       "country": "PK"},  # Pakistan — will show high risk + breach
-    {"name": "Nigeria Supplier B",      "country": "NG"},  # Nigeria — will show high risk + breach
+    {"name": "Pakistan Vendor A",       "country": "PK"},  # Pakistan — high risk + breach
+    {"name": "Nigeria Supplier B",      "country": "NG"},  # Nigeria — high risk + breach
     {"name": "Bangladesh Garments Co",  "country": "BD"},  # Bangladesh — elevated risk
+    {"name": "Ukraine Industrial Co",   "country": "UA"},  # Ukraine — critical geopolitical
 ]
 
 # ─── Demo signals — pre-seeded for realistic scoring during demo ──────────────
@@ -130,6 +131,35 @@ DEMO_SIGNALS = {
             "dimension": "regulatory",
             "severity": 4,
             "subject": "India",
+            "url": "https://gdeltproject.org"
+        }
+    ],
+    "Ukraine Industrial Co": [
+        {
+            "title": "Ukraine conflict escalation reported near industrial eastern regions",
+            "source": "DEMO — simulated GDELT signal",
+            "date": "2026-05-22",
+            "dimension": "geopolitical",
+            "severity": 10,
+            "subject": "Ukraine",
+            "url": "https://gdeltproject.org"
+        },
+        {
+            "title": "Ukraine logistics severely disrupted, shipping routes blocked",
+            "source": "DEMO — simulated GDELT signal",
+            "date": "2026-05-21",
+            "dimension": "logistics",
+            "severity": 9,
+            "subject": "Ukraine",
+            "url": "https://gdeltproject.org"
+        },
+        {
+            "title": "Ukraine supplier financial distress reported amid ongoing conflict",
+            "source": "DEMO — simulated GDELT signal",
+            "date": "2026-05-20",
+            "dimension": "supplier_health",
+            "severity": 8,
+            "subject": "Ukraine",
             "url": "https://gdeltproject.org"
         }
     ]
