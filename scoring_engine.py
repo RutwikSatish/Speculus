@@ -1,5 +1,37 @@
 """
-scoring_engine.py — NexusRisk ISO 31000 Risk Scoring Engine
+scoring_engine.py — SPECULUS ISO 31000 Risk Scoring Engine
+
+METHODOLOGY TYPE: Semi-quantitative risk assessment
+Per ISO 31000:2018 §6.4.3 and academic literature (Oliveira et al., 2017;
+Raso, 2023), semi-quantitative methods assign numerical values to likelihood
+and severity of risks for structured prioritization. This is explicitly
+supported by ISO 31000 as a valid approach.
+
+SCORING FORMULA:
+  dim_score = country_base (WGI 2024) + signal_boost (GDELT/FedRegister)
+  composite = Σ(dim_score × dim_weight)
+
+INDUSTRY STANDARD COMPARISON:
+  The FMEA Risk Priority Number (RPN = Severity × Occurrence × Detection)
+  is the most widely used supply chain risk scoring framework (MetricGate, 2026).
+  SPECULUS implements a simplified variant:
+    - Severity  → WGI baseline score (country governance quality)
+    - Occurrence → signal_boost (live news signal frequency and severity)
+    - Detection  → signal_count (more signals = higher detectability = noted in output)
+  
+  IMPORTANT: SPECULUS scores are semi-quantitative indicators for relative
+  supplier risk comparison and prioritization. They are NOT precise probability
+  estimates. Per Gartner 2025: "many organizations lack the data maturity to
+  produce credible probability estimates for emerging risks." Our approach
+  is appropriate for the data available.
+
+WHAT THE SCORES MEAN:
+  0-39:  LOW    — Within typical risk appetite. Standard monitoring.
+  40-54: MODERATE — Monitor closely. Review monthly.
+  55-69: HIGH   — Elevated. Escalation recommended.
+  70+:   CRITICAL — Immediate action required.
+  These bands align with ISO 31000 risk evaluation criteria §6.4.3.
+
 
 Framework references:
   ISO 31000:2018        — Risk assessment: likelihood × consequence
@@ -19,6 +51,7 @@ Scoring methodology:
 
 from datetime import datetime
 from typing import List, Dict, Any
+from geopolitical_engine import compute_geopolitical_score
 
 
 # ─── Risk Dimensions ─────────────────────────────────────────────────────────
@@ -209,23 +242,54 @@ def score_supplier(
 
     # ── Score each dimension ───────────────────────────────────────────────
 
+    # Compute GDELT signal stats for geopolitical engine
+    geo_signals = [s for s in all_signals if s.get("dimension") == "geopolitical"]
+    gdelt_signal_count = len(geo_signals)
+    gdelt_avg_severity = (
+        sum(s.get("severity", 3) for s in geo_signals) / len(geo_signals)
+        if geo_signals else 0.0
+    )
+
+    # Get ACLED credentials from secrets if available
+    acled_email = ""
+    acled_key   = ""
+    try:
+        import streamlit as st
+        acled_email = st.secrets.get("acled", {}).get("email", "")
+        acled_key   = st.secrets.get("acled", {}).get("api_key", "")
+    except Exception:
+        pass
+
     for dim_key in RISK_DIMENSIONS:
         base_score = base.get(dim_key, 30)
 
-        # Aggregate signals for this dimension
+        if dim_key == "geopolitical":
+            # Use two-layer scoring: WGI (40%) + ACLED (35%) + GDELT (25%)
+            geo_result = compute_geopolitical_score(
+                country_code=country,
+                wgi_geo_score=base_score,
+                gdelt_signal_count=gdelt_signal_count,
+                gdelt_avg_severity=gdelt_avg_severity,
+                acled_email=acled_email,
+                acled_key=acled_key
+            )
+            dimension_scores["geopolitical"] = geo_result["score"]
+            # Store geo breakdown for display
+            _geo_detail = geo_result
+            continue
+
+        # Other dimensions: WGI baseline + GDELT signal boost
         dim_signals = [s for s in all_signals if s.get("dimension") == dim_key]
-
-        signal_boost = 0
-        for sig in dim_signals:
-            severity = sig.get("severity", 3)
-            # Recency weighting — ISO 31000 §6.4.2 emphasises current context
-            signal_boost += severity * 1.0   # treat all as recent for MVP
-
-        # Normalise: max 40 points of signal boost (keeps score in 0-100 range)
+        signal_boost = sum(s.get("severity", 3) for s in dim_signals)
         normalised_boost = min(signal_boost / 3, 40) if dim_signals else 0
-
         raw = base_score + normalised_boost
         dimension_scores[dim_key] = min(round(raw), 100)
+
+    # Capture geo detail for output (safe fallback)
+    if "_geo_detail" not in dir():
+        _geo_detail = {"score": dimension_scores.get("geopolitical", 30),
+                       "acled_data": {"source": "WGI only", "label": ""},
+                       "methodology": "WGI baseline only"}
 
     # ── Single-source dependency — heuristic ─────────────────────────────
     # In MVP, estimate based on country concentration
@@ -256,8 +320,11 @@ def score_supplier(
 
     # ── COSO ERM Response ─────────────────────────────────────────────────
     # COSO ERM 2017 Ch.8: Risk response selection based on residual risk
-    max_appetite = max(appetite.values()) if appetite else 60
-    gap = composite_score - max_appetite
+    # Compare composite score against AVERAGE appetite threshold
+    # (using average is more representative than max — if you scored high
+    # across multiple dimensions, even a moderate composite gap warrants action)
+    avg_appetite = sum(appetite.values()) / len(appetite) if appetite else 42
+    gap = composite_score - avg_appetite
 
     if gap >= 30:
         coso_response = "Avoid"
@@ -278,6 +345,13 @@ def score_supplier(
     dim_to_zsidisin = {k: v["zsidisin"] for k, v in RISK_DIMENSIONS.items()}
     zsidisin_source = dim_to_zsidisin[top_dim]
 
+    # Detectability note: per FMEA RPN methodology, higher signal count
+    # means higher detectability (risk is more visible = somewhat lower effective risk).
+    # In SPECULUS, detectability is informational — shown in output but not
+    # used to reduce scores, as conservative risk management practice recommends
+    # against rewarding low detectability with lower scores.
+    detectability = "High" if len(all_signals) >= 3 else "Medium" if len(all_signals) >= 1 else "Low"
+
     return {
         "name":            supplier_name,
         "country":         country,
@@ -291,5 +365,9 @@ def score_supplier(
         "signals":         all_signals[:8],
         "signal_count":    len(all_signals),
         "updated":         datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
-        "framework":       "ISO 31000:2018 + COSO ERM 2017 + SCOR v13"
+        "detectability":   detectability,
+        "signal_count":    len(all_signals),
+        "methodology":     "Semi-quantitative (ISO 31000 §6.4.3) — WGI 2024 (40%) + ACLED 2025 (35%) + GDELT (25%) for geopolitical; WGI + GDELT for other dimensions",
+        "geo_detail":      _geo_detail,
+        "framework":       "ISO 31000:2018 + COSO ERM 2017 + SCOR v13 + WB WGI 2024"
     }
