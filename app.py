@@ -16,6 +16,7 @@ from scoring_engine import score_supplier, RISK_DIMENSIONS, COSO_RESPONSES
 from risk_register import build_register, export_register_csv
 from ai_briefer import generate_risk_brief
 from demo_data import DEMO_SUPPLIERS, DEMO_SIGNALS, DEMO_BANNER
+from alternatives_engine import get_alternatives, format_alternatives_for_ai
 
 # ─── Page config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -628,7 +629,7 @@ st.markdown("""
 col_toggle, col_info = st.columns([1, 3])
 
 with col_toggle:
-    demo_mode = st.toggle("Demo Mode", value=True)
+    demo_mode = st.toggle("Demo Mode", value=True)  # Default ON — instant results
 
 with col_info:
     if demo_mode:
@@ -657,7 +658,7 @@ else:
             "Suppliers",
             value="",
             height=160,
-            placeholder="TSMC, TW\nSamsung Electronics, KR\nBosch Automotive, DE\nFlex Ltd, SG",
+            placeholder="Pakistan Vendor, PK\nFoxconn Technology, CN\nTSMC, TW\nBosch Automotive, DE\nFlex Ltd, SG",
             label_visibility="collapsed"
         )
         suppliers = []
@@ -854,6 +855,71 @@ if st.session_state["register"]:
         )
         st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
+    # ── Choropleth world map ─────────────────────────────────────────────────
+    st.markdown('<div class="spec-divider"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="spec-section">Global Risk Map</div>', unsafe_allow_html=True)
+    st.caption("Supplier locations colored by composite risk score · WGI 2024 + ACLED 2025 + GDELT signals")
+
+    # Build map data
+    iso3_map = {
+        "CN":"CHN","TW":"TWN","KR":"KOR","JP":"JPN","DE":"DEU","US":"USA",
+        "IN":"IND","MX":"MEX","VN":"VNM","MY":"MYS","SG":"SGP","TH":"THA",
+        "ID":"IDN","BD":"BGD","PH":"PHL","PK":"PAK","BR":"BRA","TR":"TUR",
+        "GB":"GBR","FR":"FRA","IT":"ITA","NL":"NLD","SE":"SWE","PL":"POL",
+        "CA":"CAN","AU":"AUS","SA":"SAU","AE":"ARE","ZA":"ZAF","EG":"EGY",
+        "NG":"NGA","UA":"UKR","RU":"RUS","IL":"ISR","CZ":"CZE","HU":"HUN",
+        "RO":"ROU","ES":"ESP",
+    }
+    map_countries  = [iso3_map.get(r["country"], r["country"]) for r in register]
+    map_scores     = [r["composite_score"] for r in register]
+    map_labels     = [f"{r['name']} ({r['country']})<br>Score: {r['composite_score']}/100<br>COSO: {r['coso_response']}" for r in register]
+
+    fig_map = go.Figure(go.Choropleth(
+        locations=map_countries,
+        z=map_scores,
+        text=map_labels,
+        colorscale=[
+            [0.0,  "#0f2940"],
+            [0.3,  "#1a4a6e"],
+            [0.5,  "#0d7a4e"],
+            [0.65, "#f59e0b"],
+            [0.8,  "#ef4444"],
+            [1.0,  "#7f1d1d"],
+        ],
+        zmin=0, zmax=100,
+        marker_line_color="rgba(255,255,255,0.08)",
+        marker_line_width=0.5,
+        colorbar=dict(
+            title=dict(text="Risk Score", font=dict(family="JetBrains Mono", size=10, color="#475569")),
+            tickfont=dict(family="JetBrains Mono", size=9, color="#475569"),
+            bgcolor="rgba(0,0,0,0)",
+            outlinecolor="rgba(255,255,255,0.1)",
+            len=0.6,
+        ),
+        hovertemplate="%{text}<extra></extra>",
+    ))
+
+    fig_map.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=360,
+        geo=dict(
+            bgcolor="rgba(8,12,20,1)",
+            showframe=False,
+            showcoastlines=True,
+            coastlinecolor="rgba(255,255,255,0.08)",
+            showland=True,
+            landcolor="rgba(20,30,50,0.8)",
+            showocean=True,
+            oceancolor="rgba(8,12,20,1)",
+            showcountries=True,
+            countrycolor="rgba(255,255,255,0.05)",
+            projection_type="natural earth",
+        ),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
     # ── Risk register cards ──────────────────────────────────────────────────
     st.markdown('<div class="spec-divider"></div>', unsafe_allow_html=True)
     st.markdown('<div class="spec-section">Risk Register</div>', unsafe_allow_html=True)
@@ -921,7 +987,10 @@ if st.session_state["register"]:
                             unsafe_allow_html=True
                         )
                 else:
-                    st.markdown('<div style="font-family: JetBrains Mono, monospace; font-size: 11px; color: #1e3a5f;">No signals in past 72h</div>', unsafe_allow_html=True)
+                    if demo_mode:
+                        st.markdown('<div style="font-family: JetBrains Mono, monospace; font-size: 11px; color: #1e3a5f;">◈ No pre-seeded signals for this supplier · WGI baseline score only</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div style="font-family: JetBrains Mono, monospace; font-size: 11px; color: #1e3a5f;">◈ No GDELT signals detected in past 72h · Score based on WGI 2024 baseline</div>', unsafe_allow_html=True)
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -944,15 +1013,50 @@ if st.session_state["register"]:
                     ca, cb, cc = st.columns([2.2, 4, 0.7])
                     ca.markdown(f'<div class="dim-label">{dl}</div>', unsafe_allow_html=True)
                     cb.progress(min(d_score, 100) / 100)
-                    cc.markdown(f'<div class="dim-score {score_cls_d}">{d_score}</div>', unsafe_allow_html=True)
+                    # Show geopolitical breakdown tooltip
+                    if dk == "geopolitical" and r.get("geo_detail"):
+                        gd = r["geo_detail"]
+                        wgi_v  = round(gd.get("wgi_component", 0))
+                        acl_v  = round(gd.get("acled_component", 0))
+                        gdt_v  = round(gd.get("gdelt_component", 0))
+                        acled_lbl = gd.get("acled_data", {}).get("source", "")
+                        geo_html = f'<div class="dim-score {score_cls_d}">{d_score}</div>'
+                        geo_note = f'<div style="font-family:JetBrains Mono,monospace;font-size:8px;color:#1e3a5f;line-height:1.4;">WGI {wgi_v} · ACLED {acl_v}<br>{acled_lbl[:12]}</div>'
+                        cc.markdown(geo_html + geo_note, unsafe_allow_html=True)
+                    else:
+                        cc.markdown(f'<div class="dim-score {score_cls_d}">{d_score}</div>', unsafe_allow_html=True)
 
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # AI brief
+        # Fix 5: Show alternatives for breaching suppliers
+        if breach:
+            alts = get_alternatives(r['name'], r['country'], r['composite_score'])
+            if alts:
+                with st.expander(f"◈  Alternative Suppliers — {r['name']}", expanded=False):
+                    st.markdown('<div style="font-family: JetBrains Mono, monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: #3b82f6; margin-bottom: 12px;">Lower-risk alternatives · Same category · Sorted by risk score</div>', unsafe_allow_html=True)
+                    for alt in alts:
+                        risk_c = "#ef4444" if alt["risk"] >= 55 else "#f59e0b" if alt["risk"] >= 40 else "#34d399"
+                        st.markdown(f'''<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <div>
+                                <span style="font-family: Syne, sans-serif; font-weight:700; font-size:15px; color:#e2e8f0;">{alt["name"]}</span>
+                                <span style="font-family: JetBrains Mono, monospace; font-size:10px; color:#475569; margin-left:8px;">{alt["country"]}</span>
+                                <div style="font-size:12px; color:#64748b; margin-top:2px;">{alt["note"]}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-family:Syne,sans-serif; font-size:22px; font-weight:800; color:{risk_c};">{alt["risk"]}</div>
+                                <div style="font-family:JetBrains Mono,monospace; font-size:9px; color:#475569;">~{alt["qual_months"]}mo to qualify</div>
+                            </div>
+                        </div>''', unsafe_allow_html=True)
+                    st.markdown('<div style="font-family:JetBrains Mono,monospace;font-size:9px;color:#1e3a5f;margin-top:8px;">Qualification timelines per APICS CSCP guidelines. Verify suitability before engagement.</div>', unsafe_allow_html=True)
+
+        # AI brief with alternatives injected into prompt
         if breach and groq_key:
             with st.expander(f"◈  AI Risk Brief — {r['name']}", expanded=False):
                 with st.spinner("Generating brief..."):
-                    brief = generate_risk_brief(r, st.session_state["appetite"], groq_key)
+                    # Inject alternatives context into brief
+                    alt_context = format_alternatives_for_ai(r["name"], r["country"], r["composite_score"], r.get("breached_dims", []))
+                    r_with_alts = {**r, "alternatives_context": alt_context}
+                    brief = generate_risk_brief(r_with_alts, st.session_state["appetite"], groq_key)
                 st.markdown(f'<div style="font-family: Space Grotesk, sans-serif; font-size: 13px; line-height: 1.7; color: #94a3b8;">{brief}</div>', unsafe_allow_html=True)
 
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
